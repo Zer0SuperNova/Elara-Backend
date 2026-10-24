@@ -1,0 +1,87 @@
+import express, { type Request, type Response } from 'express';
+import { errors, sendError } from '../../utils/errors.js';
+import logger from '../../handler/logger.js';
+import { PSK } from '../../types/psk.js';
+import { logClientDiagnostics, analyticsContext } from '../../analytics/index.js';
+
+const router = express.Router();
+
+export const config = {
+    auth:       false,
+    encrypted:  true,
+    allowedPsk: [PSK.CORE, PSK.LOADER],
+};
+
+const MAX_EVENT_TYPE_LEN = 64;
+const MAX_SEVERITY_LEN   = 16;
+const MAX_ERROR_CODE_LEN = 64;
+const MAX_MESSAGE_LEN    = 2000;
+
+/**
+ * Validates and normalizes an optional client-supplied string field.
+ *
+ * @param value  - The raw value from the request body.
+ * @param maxLen - Maximum allowed length.
+ * @returns The trimmed string, or `null` when present but invalid.
+ */
+function optionalString(value: unknown, maxLen: number): string | null {
+    if (value === undefined || value === null) return '';
+    if (typeof value !== 'string' || value.length > maxLen) return null;
+    return value;
+}
+
+/**
+ * Records a client-side diagnostic / watchdog report into `client_diagnostics`.
+ *
+ * The client (watchdog) only supplies the diagnostic itself — `event_type`,
+ * `severity`, `message`, `error_code`, `meta`. Identity/origin fields
+ * (`user_id`, `psk_type`, `ip`, `country`, `build_id`, `loader_id`, `session_id`)
+ * are resolved server-side from the request so they can't be spoofed.
+ *
+ * @route POST /api/v1/diagnostics
+ * @access CORE & LOADER (E2E encrypted, no auth token)
+ */
+router.post('/api/v1/diagnostics', async (req: Request, res: Response) => {
+    try {
+        const body = req.body ?? {};
+
+        const eventType = body.event_type;
+        if (typeof eventType !== 'string' || eventType.length === 0 || eventType.length > MAX_EVENT_TYPE_LEN) {
+            logger.warn(`[Diagnostics] Invalid event_type from ${req.pskType ?? 'unknown'}`);
+            return sendError(res, errors.BAD_REQUEST);
+        }
+
+        const severity  = optionalString(body.severity, MAX_SEVERITY_LEN);
+        const message   = optionalString(body.message, MAX_MESSAGE_LEN);
+        const errorCode = optionalString(body.error_code, MAX_ERROR_CODE_LEN);
+
+        if (severity === null || message === null || errorCode === null) {
+            logger.warn(`[Diagnostics] Invalid field in '${eventType}' report from ${req.pskType ?? 'unknown'}`);
+            return sendError(res, errors.BAD_REQUEST);
+        }
+
+        const meta = body.meta;
+        if (meta !== undefined && (typeof meta !== 'object' || meta === null || Array.isArray(meta))) {
+            logger.warn(`[Diagnostics] Invalid meta in '${eventType}' report`);
+            return sendError(res, errors.BAD_REQUEST);
+        }
+
+        logClientDiagnostics({
+            event_type: eventType,
+            severity:   severity.toLowerCase(),
+            message,
+            error_code: errorCode,
+            session_id: req.header('X-Session') ?? '',
+            ...analyticsContext(req),
+            meta: meta as Record<string, unknown> | undefined,
+        });
+
+        return res.json({ success: true });
+
+    } catch (err) {
+        logger.error(`[Diagnostics] Failed to record diagnostic: ${err}`);
+        return sendError(res, errors.INTERNAL);
+    }
+});
+
+export default router;

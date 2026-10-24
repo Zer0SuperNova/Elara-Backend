@@ -1,0 +1,46 @@
+{
+  "name": "elara-backend",
+  "version": "1.0.0",
+  "description": "TypeScript backend for elara",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "tsx src/crypto/test.ts",
+    "build": "bash scripts/build.sh",
+    "clean": "rm -rf dist",
+    "create-admin": "tsx ./scripts/create-admin.ts",
+    "create": "tsx ./scripts/create.ts",
+    "create-dev-core": "tsx ./scripts/create-dev-core.ts",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1052.0",
+    "@clickhouse/client": "^1.20.0",
+    "@smithy/node-http-handler": "^4.7.4",
+    "@types/bcrypt": "^6.0.0",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "mysql2": "^3.22.3",
+    "node-addon-api": "^8.7.0",
+    "rate-limit-redis": "^5.0.0",
+    "redis": "^5.12.1",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/body-parser": "^1.19.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.19.4",
+    "typescript": "^6.0.3"
+  }
+}
