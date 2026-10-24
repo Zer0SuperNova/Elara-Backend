@@ -6,6 +6,7 @@ Elara Team.
 
 
 # Filetree
+```
 ├── scripts/             # Build and development scripts
 ├── src/
 │   ├── analytics/       # Events and request tracking
@@ -29,4 +30,5 @@ Elara Team.
 ├── package.json
 └── tsconfig.json
 
+```
 
